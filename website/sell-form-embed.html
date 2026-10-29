@@ -15,12 +15,20 @@
   .tph-field input, .tph-field select { width: 100%; box-sizing: border-box; padding: 12px;
     font-size: 16px; border: 1px solid #cbd2d9; border-radius: 8px; background: #fff; }
   .tph-field input:focus, .tph-field select:focus { outline: 2px solid #2f855a; border-color: #2f855a; }
-  .tph-hp { position: absolute; left: -9999px; }
+  .tph-field input[aria-invalid="true"], .tph-field select[aria-invalid="true"] { border-color: #c53030; }
+  .tph-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
   .tph-btn { width: 100%; padding: 16px; font-size: 18px; font-weight: 700; color: #fff;
     background: #2f855a; border: 0; border-radius: 8px; cursor: pointer; }
+  .tph-btn:focus-visible { outline: 3px solid #1f2933; outline-offset: 2px; }
   .tph-btn:disabled { opacity: .6; cursor: wait; }
   .tph-note { font-size: 12px; color: #7b8794; margin-top: 10px; text-align: center; }
   .tph-error { color: #c53030; font-size: 14px; margin-top: 10px; display: none; }
+  .tph-success { text-align: center; padding: 8px 0; }
+  .tph-success:focus { outline: none; }
+  .tph-success .tph-check { width: 64px; height: 64px; border-radius: 50%; background: #2f855a; color: #fff;
+    font-size: 36px; line-height: 64px; margin: 0 auto 16px; }
+  .tph-success p { color: #52606d; margin: 0 0 20px; }
+  .tph-success a.tph-btn { display: block; box-sizing: border-box; text-decoration: none; color: #fff; }
 </style>
 
 <form class="tph-form" id="tph-form" novalidate>
@@ -29,18 +37,18 @@
 
   <div class="tph-row">
     <div class="tph-field"><label for="tph-first">First name *</label>
-      <input id="tph-first" name="firstName" autocomplete="given-name" required></div>
+      <input id="tph-first" name="firstName" autocomplete="given-name" required aria-describedby="tph-error"></div>
     <div class="tph-field"><label for="tph-last">Last name</label>
       <input id="tph-last" name="lastName" autocomplete="family-name"></div>
   </div>
   <div class="tph-row">
     <div class="tph-field"><label for="tph-phone">Phone *</label>
-      <input id="tph-phone" name="phone" type="tel" autocomplete="tel" required></div>
+      <input id="tph-phone" name="phone" type="tel" autocomplete="tel" required aria-describedby="tph-error"></div>
     <div class="tph-field"><label for="tph-email">Email</label>
-      <input id="tph-email" name="email" type="email" autocomplete="email"></div>
+      <input id="tph-email" name="email" type="email" autocomplete="email" aria-describedby="tph-error"></div>
   </div>
   <div class="tph-field"><label for="tph-address">Property address *</label>
-    <input id="tph-address" name="address" autocomplete="street-address" required></div>
+    <input id="tph-address" name="address" autocomplete="street-address" required aria-describedby="tph-error"></div>
   <div class="tph-row">
     <div class="tph-field"><label for="tph-city">City</label>
       <input id="tph-city" name="city" autocomplete="address-level2"></div>
@@ -87,9 +95,10 @@
       <input id="tph-price" name="askingPrice" inputmode="numeric" placeholder="$"></div>
   </div>
 
-  <input class="tph-hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+  <div class="tph-hp" aria-hidden="true"><label for="tph-website">Leave this field empty</label>
+    <input id="tph-website" name="website" tabindex="-1" autocomplete="off"></div>
   <button class="tph-btn" type="submit" id="tph-submit">Get My Cash Offer</button>
-  <div class="tph-error" id="tph-error">Please fill in your first name, phone and property address.</div>
+  <div class="tph-error" id="tph-error" role="alert" aria-live="assertive"></div>
   <p class="tph-note">Your information is private and never shared. By submitting, you agree Turning Point Homes may contact you by phone, text or email.</p>
 </form>
 
@@ -97,31 +106,138 @@
 (function () {
   var APPS_SCRIPT_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
   var THANK_YOU_URL = 'https://investturningpoint.com/thank-you/';
+  // If the script is slow to answer, stop waiting after this long and show the thank-you
+  // (the lead has already been sent by then).
+  var SUBMIT_TIMEOUT_MS = 12000;
 
   var form = document.getElementById('tph-form');
   var btn = document.getElementById('tph-submit');
   var err = document.getElementById('tph-error');
+  var BTN_TEXT = btn.textContent;
+  var sending = false;
+
+  function field(n) { return form.elements[n]; }
+  function val(n) { return field(n).value.trim(); }
+
+  // Accepts any formatting; needs a 10-digit US number (an optional leading 1 / +1 is fine).
+  function normalizePhone(v) {
+    var d = v.replace(/\D/g, '');
+    if (d.length === 11 && d.charAt(0) === '1') d = d.slice(1);
+    if (!/^[2-9]\d{2}[2-9]\d{6}$/.test(d)) return null;
+    return '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6);
+  }
+  function validEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v); }
+
+  function showError(msg) { err.textContent = msg; err.style.display = 'block'; }
+  function hideError() { err.textContent = ''; err.style.display = 'none'; }
+
+  function validate() {
+    var problems = [];
+    ['firstName', 'phone', 'email', 'address'].forEach(function (n) { field(n).removeAttribute('aria-invalid'); });
+    var missing = [];
+    if (!val('firstName')) missing.push(['firstName', 'first name']);
+    if (!val('phone')) missing.push(['phone', 'phone number']);
+    if (!val('address')) missing.push(['address', 'property address']);
+    if (missing.length) {
+      problems.push({ n: missing[0][0], msg: 'Please fill in your ' +
+        missing.map(function (m) { return m[1]; }).join(', ').replace(/, ([^,]*)$/, ' and $1') + '.' });
+      missing.forEach(function (m) { field(m[0]).setAttribute('aria-invalid', 'true'); });
+    }
+    if (val('phone') && !normalizePhone(val('phone'))) {
+      field('phone').setAttribute('aria-invalid', 'true');
+      problems.push({ n: 'phone', msg: 'Please enter a 10-digit phone number, like (816) 555-0123.' });
+    }
+    if (val('email') && !validEmail(val('email'))) {
+      field('email').setAttribute('aria-invalid', 'true');
+      problems.push({ n: 'email', msg: 'Please check your email address (or leave it blank).' });
+    }
+    if (!problems.length) return true;
+    showError(problems.map(function (p) { return p.msg; }).join(' '));
+    // Focus the first problem field in form order.
+    for (var i = 0; i < form.elements.length; i++) {
+      if (form.elements[i].getAttribute('aria-invalid') === 'true') { form.elements[i].focus(); break; }
+    }
+    return false;
+  }
+
+  form.addEventListener('input', function (e) {
+    if (e.target.getAttribute && e.target.getAttribute('aria-invalid')) e.target.removeAttribute('aria-invalid');
+  });
+
+  function sourcePage() {
+    try { if (window.top.location.href) return window.top.location.href; } catch (x) {}
+    if (document.referrer) return document.referrer;
+    try {
+      var a = location.ancestorOrigins;
+      if (a && a.length) return a[a.length - 1];
+    } catch (x) {}
+    return location.href;
+  }
+
+  function resetButton() { sending = false; btn.disabled = false; btn.textContent = BTN_TEXT; }
+
+  // Shown if the browser/iframe won't let us open the thank-you page (e.g. a sandboxed embed).
+  function showInlineThanks() {
+    if (document.getElementById('tph-success')) return;
+    var box = document.createElement('div');
+    box.className = 'tph-success';
+    box.id = 'tph-success';
+    box.setAttribute('role', 'status');
+    box.tabIndex = -1;
+    box.innerHTML = '<div class="tph-check" aria-hidden="true">&#10003;</div>' +
+      '<h2>Thank you! We got your information.</h2>' +
+      '<p>A member of the Turning Point Homes team will reach out shortly, usually within one business day. ' +
+      'Keep an eye out for our call or text.</p>' +
+      '<a class="tph-btn" target="_top"></a>';
+    box.querySelector('a').href = THANK_YOU_URL;
+    box.querySelector('a').textContent = 'See what happens next';
+    while (form.firstChild) form.removeChild(form.firstChild);
+    form.appendChild(box);
+    try { box.focus({ preventScroll: true }); box.scrollIntoView({ block: 'center' }); } catch (x) {}
+  }
+
+  function goToThankYou() {
+    btn.textContent = 'Sent!';
+    var blocked = false;
+    try { window.top.location.href = THANK_YOU_URL; } catch (x) { blocked = true; }
+    // If we're still on this page shortly after, top navigation was blocked: thank them here.
+    setTimeout(showInlineThanks, blocked ? 0 : 1500);
+  }
+
+  function post(body) {
+    return fetch(APPS_SCRIPT_URL, { method: 'POST', mode: 'no-cors', keepalive: true, body: body });
+  }
 
   form.addEventListener('submit', function (e) {
     e.preventDefault();
-    var required = ['firstName', 'phone', 'address'];
-    var missing = required.filter(function (n) { return !form.elements[n].value.trim(); });
-    if (missing.length) { err.style.display = 'block'; form.elements[missing[0]].focus(); return; }
-    err.style.display = 'none';
+    if (sending) return;
+    if (!validate()) return;
+    hideError();
+    sending = true;
     btn.disabled = true;
     btn.textContent = 'Sending…';
 
+    field('phone').value = normalizePhone(val('phone'));
     var body = new URLSearchParams(new FormData(form));
-    var page = '';
-    try { page = window.top.location.href; } catch (x) { page = document.referrer || location.href; }
-    body.append('sourcePage', page);
+    body.set('sourcePage', sourcePage());
 
-    fetch(APPS_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: body })
-      .catch(function () {})
-      .then(function () {
-        // Hostinger runs embeds in an iframe, so send the whole page to the thank-you page.
-        try { window.top.location.href = THANK_YOU_URL; } catch (x) { window.open(THANK_YOU_URL, '_top'); }
-      });
+    var settled = false;
+    function settle(ok) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (ok) return goToThankYou();
+      resetButton();
+      showError('Sorry, your information didn’t go through. Please check your internet connection and try again.');
+    }
+    // no-cors: we can't read the reply, but a network failure (offline, blocked, DNS) still rejects.
+    var timer = setTimeout(function () { settle(true); }, SUBMIT_TIMEOUT_MS);
+    post(body)
+      .catch(function () { return new Promise(function (r) { setTimeout(r, 800); }).then(function () { return post(body); }); })
+      .then(function () { settle(true); }, function () { settle(false); });
   });
+
+  // Coming "Back" from the thank-you page can restore this page from cache mid-send.
+  window.addEventListener('pageshow', function (e) { if (e.persisted && !document.getElementById('tph-success')) resetButton(); });
 })();
 </script>
