@@ -1,0 +1,201 @@
+<!--
+  Turning Point Homes - structured data (JSON-LD) for Hostinger Website Builder
+  ------------------------------------------------------------------------------
+  HOW TO ADD:
+   - Block 1 (LocalBusiness) belongs on EVERY page. Best place: Website settings ->
+     Integrations / Custom code -> "Header code" (head), if your Hostinger plan offers it.
+     If not, add an "Embed code" element to the Home page (and optionally the footer).
+   - Block 2 (FAQPage) belongs ONLY on /sell-your-house/, because its questions must match
+     the FAQ visible on that page (see seo/sell-your-house-copy.md, Section 8).
+     Add it with an "Embed code" element on that page (e.g. near the FAQ section).
+   - If you can only use one Embed element on /sell-your-house/, paste both blocks into it.
+   - Hostinger's Embed code element may render inside an iframe. Google may not credit schema
+     inside an iframe to your page. After publishing, run the Rich Results Test on the live URL;
+     if it finds no structured data, move the blocks to Website settings -> Custom code (head).
+
+  BEFORE PUBLISHING:
+   - Replace YOUR_PHONE with the real number in the format +1-816-555-0123.
+     (Leave it out entirely rather than publishing the placeholder.)
+   - GEO COORDINATES ARE APPROXIMATE (estimated for 25209 E Blue Mills Rd, Independence,
+     MO 64058, NOT verified). Get exact values: open Google Maps, right-click the property,
+     click the coordinates to copy them, and paste them over latitude/longitude below.
+   - If you hide your street address on Google Business Profile (service-area business),
+     you may keep the address here, but it must be exactly the same as on the site footer
+     and citations. If you prefer not to show it anywhere, delete "streetAddress" and keep
+     city/state/ZIP.
+   - "@type" is LocalBusiness on purpose: RealEstateAgent implies a licensed agent/broker.
+     Change it to "RealEstateAgent" only if that's accurate for the business.
+   - Test after publishing: https://search.google.com/test/rich-results and
+     https://validator.schema.org (paste the page URL).
+   - Note: Google currently shows FAQ rich results mainly for authoritative government/
+     health sites, so don't expect FAQ snippets in search. The markup is still valid and
+     harmless, and helps search engines and AI tools understand the page.
+-->
+
+<!-- Block 1: business info (all pages) -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  "@id": "https://investturningpoint.com/#business",
+  "name": "Turning Point Homes",
+  "description": "Turning Point Homes buys houses for cash in Independence, Kansas City, and the surrounding area. Sell as-is with no repairs, no agent commissions, and a closing date you choose.",
+  "url": "https://investturningpoint.com/",
+  "email": "nick@investturningpoint.com",
+  "telephone": "YOUR_PHONE",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "25209 E Blue Mills Rd",
+    "addressLocality": "Independence",
+    "addressRegion": "MO",
+    "postalCode": "64058",
+    "addressCountry": "US"
+  },
+  "geo": {
+    "@type": "GeoCoordinates",
+    "latitude": 39.135,
+    "longitude": -94.305
+  },
+  "areaServed": [
+    {
+      "@type": "City",
+      "name": "Independence, MO"
+    },
+    {
+      "@type": "City",
+      "name": "Kansas City, MO"
+    },
+    {
+      "@type": "City",
+      "name": "Blue Springs, MO"
+    },
+    {
+      "@type": "City",
+      "name": "Lee's Summit, MO"
+    },
+    {
+      "@type": "City",
+      "name": "Raytown, MO"
+    },
+    {
+      "@type": "City",
+      "name": "Grain Valley, MO"
+    },
+    {
+      "@type": "City",
+      "name": "Sugar Creek, MO"
+    },
+    {
+      "@type": "City",
+      "name": "Buckner, MO"
+    },
+    {
+      "@type": "City",
+      "name": "Oak Grove, MO"
+    },
+    {
+      "@type": "City",
+      "name": "Grandview, MO"
+    },
+    {
+      "@type": "AdministrativeArea",
+      "name": "Jackson County, MO"
+    }
+  ],
+  "potentialAction": {
+    "@type": "QuoteAction",
+    "name": "Get a cash offer",
+    "target": "https://investturningpoint.com/sell-your-house/"
+  }
+}
+</script>
+
+<!-- Block 2: FAQ (only on /sell-your-house/ - must match visible FAQ text) -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "How fast can you buy my house?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "In many cases we can close in as little as 7 to 14 days once you accept our offer, depending on the title work. If you need more time to move, you can choose a later closing date that works for you."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Do I need to make any repairs or clean the house?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. We buy houses as-is, in any condition. You don't need to make repairs, clean, or paint. You can also leave behind any furniture or belongings you don't want to take with you."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do you decide how much to offer?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "We look at the location, the condition of the house, the cost of any repairs it needs, and recent sales of similar homes nearby. We'll walk you through how we arrived at the number so you can make an informed decision."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Are there any fees or commissions?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. When you sell directly to Turning Point Homes there are no real estate agent commissions and no fees charged by us. We'll go over all closing costs with you before you sign anything."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is there any obligation if I request an offer?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. Requesting a cash offer is free and there is no obligation to accept it. If the offer doesn't work for you, you can simply say no."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Will I get less than if I list with an agent?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Our cash offer is usually below what a fully updated house might sell for on the open market. But when you sell to us you skip agent commissions, repairs, holding costs, and months of waiting, so many sellers find the difference is smaller than they expected. We'll be honest if listing makes more sense for you."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can you buy a house that is in foreclosure or behind on payments?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Often, yes. If you are behind on mortgage payments or facing foreclosure, a quick cash sale may help you pay off the loan before the foreclosure sale date. The sooner you contact us, the more options you have."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I sell a house I inherited or that is in probate?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. We regularly buy inherited houses, including houses that are full of belongings or need work. If the estate is in probate, we can work with the personal representative and the estate's attorney on timing."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Do you buy rental properties with tenants living in them?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. We buy rental houses with or without tenants in place, so you don't have to wait for a lease to end or deal with an eviction before selling."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What areas do you buy houses in?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "We buy houses in Independence, Kansas City, Blue Springs, Lee's Summit, Raytown, Grain Valley, and surrounding communities in the Kansas City metro area."
+      }
+    }
+  ]
+}
+</script>
