@@ -31,7 +31,13 @@ Change the address in the site **footer** (and on the Contact page, if it's list
 You can also update it in Hostinger under **Website → Settings → Business info / SEO** if it's set there.
 
 ## 5. Send leads to REsimpli (Zapier)
-Create a Zap:
+**Fix this first:** testing showed your REsimpli connection in Zapier is missing its API key
+("Authorization apiKey missing"), so any Zap that uses it will fail.
+1. In REsimpli, go to **Settings → Integrations / API** and copy your API key.
+2. Reconnect REsimpli in Zapier here: https://mcp.zapier.com/api/v1/connect-auth/ReSimpli20CLIAPI?accountId=13234475
+   (or go to zapier.com → **Apps** → REsimpli 6.0 → **Reconnect**) and paste the key.
+
+Then create a Zap:
 - **Trigger:** Google Sheets → *New Spreadsheet Row* → sheet "Turning Point Homes - Seller Leads", worksheet **Leads**
 - **Action:** REsimpli 6.0 → *Add Lead (Residential)*, using the connected account nick@investturningpoint.com
 
