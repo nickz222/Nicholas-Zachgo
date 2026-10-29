@@ -134,17 +134,27 @@ async function main() {
 
   // ---------- test runner ----------
   const results = [];
+  const FILTER = process.env.TEST_FILTER ? new RegExp(process.env.TEST_FILTER, 'i') : null;
   async function test(name, fn) {
+    if (FILTER && !FILTER.test(name)) return;
     try { await fn(); results.push([name, true]); console.log('PASS', name); }
     catch (e) { results.push([name, false, e.message]); console.log('FAIL', name, '\n     ', e.message.split('\n')[0]); }
   }
   function assert(c, msg) { if (!c) throw new Error(msg); }
 
   const browser = await chromium.launch();
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
 
+  // Each test gets its own browser context; closing is time-boxed because headless Chromium
+  // occasionally stalls page.close() when it lands mid-navigation (a harness quirk, not a form bug).
+  const DESKTOP = { viewport: { width: 1280, height: 900 } };
+  const MOBILE = { viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true };
+  async function newPage(opts) { const c = await browser.newContext(opts || DESKTOP); return c.newPage(); }
+  async function done(page) {
+    await page.waitForLoadState('load', { timeout: 3000 }).catch(() => {});
+    await Promise.race([page.context().close(), new Promise((r) => setTimeout(r, 5000))]);
+  }
   async function openForm(query, opts) {
-    const page = await (opts && opts.context || ctx).newPage();
+    const page = await newPage(opts && opts.context);
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
     const url = query === 'direct' ? `${SITE}/direct` : query.startsWith('direct?') ? `${SITE}/${query}` : `${SITE}/sell-your-house/?${query}`;
@@ -200,7 +210,7 @@ async function main() {
     const cols = JSON.parse(gs.match(/const COLUMNS = (\[[\s\S]*?\]);/)[1].replace(/'/g, '"').replace(/,\s*\]/, ']'));
     const { page, frame } = await openForm('direct');
     const names = await frame.$$eval('#tph-form [name]', (els) => els.map((e) => e.name));
-    await page.close();
+    await done(page);
     const expected = cols.filter((c) => c !== 'submittedAt' && c !== 'sourcePage');
     const missing = expected.filter((c) => !names.includes(c));
     const extra = names.filter((n) => !expected.includes(n) && n !== 'website');
@@ -223,7 +233,7 @@ async function main() {
     const inv = await frame.$eval('[name=firstName]', (e) => e.getAttribute('aria-invalid'));
     assert(inv === 'true', 'firstName not marked aria-invalid');
     assert(posts.length === 0, 'POST was sent');
-    await page.close();
+    await done(page);
   });
 
   for (const [field, label] of [['firstName', 'first name'], ['phone', 'phone'], ['address', 'address']]) {
@@ -238,7 +248,7 @@ async function main() {
       const focused = await frame.evaluate(() => document.activeElement && document.activeElement.name);
       assert(focused === field, `focus on ${focused}, expected ${field}`);
       assert(posts.length === 0, 'POST was sent');
-      await page.close();
+      await done(page);
     });
   }
 
@@ -252,7 +262,7 @@ async function main() {
       const err = await visibleError(frame);
       assert(/phone/i.test(err), 'no phone error shown (got "' + err + '")');
       assert(posts.length === 0, 'POST was sent');
-      await page.close();
+      await done(page);
     });
   }
   for (const good of ['816-555-0142', '(816) 555-0142', '816.555.0142', '8165550142', '+1 816 555 0142', '1-816-555-0142']) {
@@ -264,7 +274,7 @@ async function main() {
       const o = await outcome(page, frame);
       assert(o === 'redirect', 'outcome ' + o + ' / error: ' + (await visibleError(frame).catch(() => '')));
       assert(posts.length === 1, 'posts=' + posts.length);
-      await page.close();
+      await done(page);
     });
   }
   for (const bad of ['jane@', 'jane.example.com', 'jane@example', 'a b@c.com']) {
@@ -277,7 +287,7 @@ async function main() {
       const err = await visibleError(frame);
       assert(/email/i.test(err), 'no email error (got "' + err + '")');
       assert(posts.length === 0, 'POST was sent');
-      await page.close();
+      await done(page);
     });
   }
   await test('email optional: blank email submits', async () => {
@@ -287,7 +297,7 @@ async function main() {
     await frame.click('#tph-submit');
     assert((await outcome(page, frame)) === 'redirect', 'did not submit');
     assert(posts.length === 1, 'posts=' + posts.length);
-    await page.close();
+    await done(page);
   });
 
   // ---------- payload ----------
@@ -304,7 +314,7 @@ async function main() {
     assert(p.sourcePage && p.sourcePage.includes('/sell-your-house/'), 'sourcePage=' + p.sourcePage);
     assert(p.website === '' || p.website === undefined, 'honeypot sent non-empty');
     assert(/application\/x-www-form-urlencoded/.test(posts[0].headers['content-type'] || ''), 'content-type ' + posts[0].headers['content-type']);
-    await page.close();
+    await done(page);
   });
 
   // ---------- iframe scenarios ----------
@@ -336,7 +346,7 @@ async function main() {
       }
       assert(!errors.length, 'page errors: ' + errors.join('; '));
       console.log('      sourcePage =', posts[0].params.sourcePage);
-      await page.close();
+      await done(page);
     });
   }
 
@@ -351,7 +361,7 @@ async function main() {
     const o = await outcome(page, frame, 8000);
     endpointMode = 'ok';
     assert(o === 'redirect', 'outcome=' + o);
-    await page.close();
+    await done(page);
   });
 
   await test('Back button from thank-you page: form is usable again (not stuck on "Sending")', async () => {
@@ -364,7 +374,7 @@ async function main() {
     await page.waitForTimeout(300);
     const b = await page.$eval('#tph-submit', (b) => [b.disabled, b.textContent]);
     assert(!b[0] && !/sending|sent/i.test(b[1]), 'button state after Back: ' + b);
-    await page.close();
+    await done(page);
   });
 
   // ---------- double submit ----------
@@ -382,7 +392,7 @@ async function main() {
     await outcome(page, frame, 8000);
     endpointMode = 'ok';
     assert(posts.length === 1, 'posts=' + posts.length);
-    await page.close();
+    await done(page);
   });
 
   // ---------- failure handling ----------
@@ -401,7 +411,7 @@ async function main() {
       const v = await frame.$eval('[name=address]', (e) => e.value);
       assert(v === VALID.address, 'form data lost');
       if (name === 'direct') await page.screenshot({ path: path.join(OUT, 'form-network-error-desktop.png'), fullPage: true });
-      await page.close();
+      await done(page);
     });
   }
   await test('endpoint hangs: button does not hang forever; user gets a thank-you after timeout', async () => {
@@ -414,7 +424,7 @@ async function main() {
     hung.splice(0).forEach((r) => { try { r.end(); } catch (e) {} });
     assert(posts.length === 1, 'posts=' + posts.length);
     assert(o === 'redirect' || o === 'inline', 'outcome=' + o);
-    await page.close();
+    await done(page);
   });
 
   // ---------- honeypot ----------
@@ -429,7 +439,7 @@ async function main() {
     assert(info.tab === -1, 'honeypot tabbable');
     assert(info.hidden, 'honeypot not aria-hidden');
     assert(info.val === '', 'honeypot prefilled');
-    await page.close();
+    await done(page);
   });
 
   // ---------- accessibility / keyboard ----------
@@ -450,7 +460,7 @@ async function main() {
       return out;
     });
     assert(!problems.length, problems.join('; '));
-    await page.close();
+    await done(page);
   });
   await test('keyboard: Tab order covers all fields then button (skips honeypot); Enter submits', async () => {
     await clearPosts();
@@ -468,7 +478,7 @@ async function main() {
     await page.keyboard.press('Enter');
     const o = await outcome(page, frame);
     assert(o === 'redirect' && posts.length === 1, 'Enter did not submit: ' + o);
-    await page.close();
+    await done(page);
   });
   await test('focus is visible on inputs and button', async () => {
     const { page, frame } = await openForm('direct');
@@ -479,7 +489,7 @@ async function main() {
     const btn = await frame.$eval('#tph-submit', (e) => [getComputedStyle(e).outlineStyle, getComputedStyle(e).boxShadow]);
     assert(inp !== 'none', 'no focus outline on input');
     assert(btn[0] !== 'none' || btn[1] !== 'none', 'no focus indicator on button');
-    await page.close();
+    await done(page);
   });
 
   // ---------- screenshots + mobile ----------
@@ -489,20 +499,20 @@ async function main() {
     await frame.click('#tph-submit');
     await page.waitForTimeout(300);
     await page.screenshot({ path: path.join(OUT, 'form-errors-desktop.png'), fullPage: true });
-    await page.close();
-    const p2 = await ctx.newPage();
+    await done(page);
+    const p2 = await newPage();
     await p2.goto(THANK_YOU);
     await p2.screenshot({ path: path.join(OUT, 'thank-you-desktop.png'), fullPage: true });
-    await p2.close();
+    await done(p2);
     const s = await openForm('mode=plain&sandbox=1');
     await fill(s.frame, VALID);
     await s.frame.click('#tph-submit');
     await outcome(s.page, s.frame);
     await s.page.screenshot({ path: path.join(OUT, 'inline-thank-you-desktop.png') });
-    await s.page.close();
+    await done(s.page);
   });
 
-  const mctx = await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  const mctx = MOBILE;
   const overflow = (f) => f.evaluate(() => {
     const d = document.documentElement;
     const wide = [...document.querySelectorAll('body *')].filter((el) => el.getBoundingClientRect().right > d.clientWidth + 1).map((el) => el.tagName + '#' + el.id + '.' + el.className);
@@ -522,16 +532,16 @@ async function main() {
         const fo2 = await overflow(frame);
         assert(fo2.sw <= fo2.cw, 'error state overflows');
       }
-      await page.close();
+      await done(page);
     });
   }
   await test('mobile 375px: thank-you page no overflow', async () => {
-    const p = await mctx.newPage();
+    const p = await newPage(MOBILE);
     await p.goto(THANK_YOU);
     const o = await overflow(p.mainFrame());
     await p.screenshot({ path: path.join(OUT, 'thank-you-mobile.png'), fullPage: true });
     assert(o.sw <= o.cw, `overflows: ${o.sw}>${o.cw} ${o.wide}`);
-    await p.close();
+    await done(p);
   });
   await test('mobile 375px: inline thank-you (sandboxed iframe) fits', async () => {
     await clearPosts();
@@ -542,7 +552,7 @@ async function main() {
     const fo = await overflow(frame);
     assert(fo.sw <= fo.cw, 'inline message overflows');
     await page.screenshot({ path: path.join(OUT, 'inline-thank-you-mobile.png') });
-    await page.close();
+    await done(page);
   });
   await test('mobile: phone/email/zip fields use proper mobile keyboards', async () => {
     const { page, frame } = await openForm('direct', { context: mctx });
@@ -550,7 +560,7 @@ async function main() {
       const e = document.querySelector('[name=' + n + ']'); return e.type + '/' + (e.inputMode || '');
     }));
     assert(r[0].startsWith('tel') && r[1].startsWith('email') && /numeric/.test(r[2]), r.join(' '));
-    await page.close();
+    await done(page);
   });
 
   // ---------- thank-you page content ----------
