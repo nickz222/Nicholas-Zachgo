@@ -1,0 +1,127 @@
+<!--
+  Turning Point Homes - "Sell Your House" form.
+  Paste into a Hostinger Website Builder "Embed code" element on /sell-your-house/.
+  Replace APPS_SCRIPT_URL below with your deployed Apps Script web app URL.
+-->
+<style>
+  .tph-form { font-family: inherit; max-width: 640px; margin: 0 auto; padding: 24px;
+    background: #fff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,.08); color: #1f2933; }
+  .tph-form h2 { margin: 0 0 4px; font-size: 26px; }
+  .tph-form p.tph-sub { margin: 0 0 20px; color: #52606d; }
+  .tph-row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .tph-row > .tph-field { flex: 1 1 180px; }
+  .tph-field { margin-bottom: 14px; }
+  .tph-field label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+  .tph-field input, .tph-field select { width: 100%; box-sizing: border-box; padding: 12px;
+    font-size: 16px; border: 1px solid #cbd2d9; border-radius: 8px; background: #fff; }
+  .tph-field input:focus, .tph-field select:focus { outline: 2px solid #2f855a; border-color: #2f855a; }
+  .tph-hp { position: absolute; left: -9999px; }
+  .tph-btn { width: 100%; padding: 16px; font-size: 18px; font-weight: 700; color: #fff;
+    background: #2f855a; border: 0; border-radius: 8px; cursor: pointer; }
+  .tph-btn:disabled { opacity: .6; cursor: wait; }
+  .tph-note { font-size: 12px; color: #7b8794; margin-top: 10px; text-align: center; }
+  .tph-error { color: #c53030; font-size: 14px; margin-top: 10px; display: none; }
+</style>
+
+<form class="tph-form" id="tph-form" novalidate>
+  <h2>Get Your Fair Cash Offer</h2>
+  <p class="tph-sub">No repairs, no fees, no commissions. Tell us about your property.</p>
+
+  <div class="tph-row">
+    <div class="tph-field"><label for="tph-first">First name *</label>
+      <input id="tph-first" name="firstName" autocomplete="given-name" required></div>
+    <div class="tph-field"><label for="tph-last">Last name</label>
+      <input id="tph-last" name="lastName" autocomplete="family-name"></div>
+  </div>
+  <div class="tph-row">
+    <div class="tph-field"><label for="tph-phone">Phone *</label>
+      <input id="tph-phone" name="phone" type="tel" autocomplete="tel" required></div>
+    <div class="tph-field"><label for="tph-email">Email</label>
+      <input id="tph-email" name="email" type="email" autocomplete="email"></div>
+  </div>
+  <div class="tph-field"><label for="tph-address">Property address *</label>
+    <input id="tph-address" name="address" autocomplete="street-address" required></div>
+  <div class="tph-row">
+    <div class="tph-field"><label for="tph-city">City</label>
+      <input id="tph-city" name="city" autocomplete="address-level2"></div>
+    <div class="tph-field" style="flex:0 1 90px"><label for="tph-state">State</label>
+      <input id="tph-state" name="state" value="MO" maxlength="2" autocomplete="address-level1"></div>
+    <div class="tph-field" style="flex:0 1 120px"><label for="tph-zip">Zip</label>
+      <input id="tph-zip" name="zip" inputmode="numeric" maxlength="10" autocomplete="postal-code"></div>
+  </div>
+  <div class="tph-row">
+    <div class="tph-field"><label for="tph-timeline">How soon do you want to sell?</label>
+      <select id="tph-timeline" name="timeline">
+        <option value="">Select…</option>
+        <option>ASAP</option>
+        <option>Sometime in next few months</option>
+        <option>When I get the right offer</option>
+        <option>Not Sure</option>
+      </select></div>
+    <div class="tph-field"><label for="tph-condition">Property condition</label>
+      <select id="tph-condition" name="condition">
+        <option value="">Select…</option>
+        <option>Move-in ready</option>
+        <option>Needs minor repairs</option>
+        <option>Needs major repairs</option>
+        <option>Tear-down / uninhabitable</option>
+      </select></div>
+  </div>
+  <div class="tph-row">
+    <div class="tph-field"><label for="tph-reason">Why are you selling?</label>
+      <select id="tph-reason" name="reason">
+        <option value="">Select…</option>
+        <option>Behind on taxes/mortgage</option>
+        <option>Death in the family</option>
+        <option>Deferred Maintenance</option>
+        <option>Don't want to be a landlord anymore</option>
+        <option>Downsizing/Empty Nest</option>
+        <option>Getting divorced</option>
+        <option>Health issues</option>
+        <option>Job loss</option>
+        <option>Moving to a different city</option>
+        <option>Need money</option>
+        <option>Other</option>
+      </select></div>
+    <div class="tph-field"><label for="tph-price">Asking price (optional)</label>
+      <input id="tph-price" name="askingPrice" inputmode="numeric" placeholder="$"></div>
+  </div>
+
+  <input class="tph-hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+  <button class="tph-btn" type="submit" id="tph-submit">Get My Cash Offer</button>
+  <div class="tph-error" id="tph-error">Please fill in your first name, phone and property address.</div>
+  <p class="tph-note">Your information is private and never shared. By submitting, you agree Turning Point Homes may contact you by phone, text or email.</p>
+</form>
+
+<script>
+(function () {
+  var APPS_SCRIPT_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
+  var THANK_YOU_URL = 'https://investturningpoint.com/thank-you/';
+
+  var form = document.getElementById('tph-form');
+  var btn = document.getElementById('tph-submit');
+  var err = document.getElementById('tph-error');
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var required = ['firstName', 'phone', 'address'];
+    var missing = required.filter(function (n) { return !form.elements[n].value.trim(); });
+    if (missing.length) { err.style.display = 'block'; form.elements[missing[0]].focus(); return; }
+    err.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+
+    var body = new URLSearchParams(new FormData(form));
+    var page = '';
+    try { page = window.top.location.href; } catch (x) { page = document.referrer || location.href; }
+    body.append('sourcePage', page);
+
+    fetch(APPS_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: body })
+      .catch(function () {})
+      .then(function () {
+        // Hostinger runs embeds in an iframe, so send the whole page to the thank-you page.
+        try { window.top.location.href = THANK_YOU_URL; } catch (x) { window.open(THANK_YOU_URL, '_top'); }
+      });
+  });
+})();
+</script>
