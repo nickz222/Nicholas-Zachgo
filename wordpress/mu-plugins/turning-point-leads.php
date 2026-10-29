@@ -279,3 +279,70 @@ add_action(
 function tph_fix_address( $html ) {
 	return str_ireplace( TPH_OLD_ADDRESSES, TPH_ADDRESS, $html );
 }
+
+/* ------------------------------------------------------------------ */
+/* 5. Descriptive alt text for images that have none (helps Google     */
+/*    Images and accessibility). Existing alt text is never replaced.  */
+/* ------------------------------------------------------------------ */
+
+const TPH_ALT_TEXT = [
+	'house-sold-due-to-relocation'  => 'House sold for cash in Independence, MO after the owner relocated',
+	'house-in-a-critcial-condition' => 'Distressed house we buy as-is for cash in the Kansas City area',
+	'house-in-a-bad-condition'      => 'House needing major repairs, bought as-is by Turning Point Homes',
+	'renovated-building'            => 'Renovated home after a cash purchase by Turning Point Homes',
+	'modern-house'                  => 'Modern single-family home in the Kansas City area',
+	'building-apartment-exterior'   => 'Apartment building exterior, multifamily property we buy for cash',
+	'turning-point-hero-image'      => 'Turning Point Homes buys houses for cash in Independence and Kansas City',
+	'hero-image'                    => 'Sell your house fast for cash in Independence, MO',
+	'nicolas-zachgo'                => 'Nicholas Zachgo, owner of Turning Point Homes',
+	'turning-point-logo'            => 'Turning Point Homes logo',
+	'turning_point_logo'            => 'Turning Point Homes logo',
+	'keys-to-home-buyer'            => 'House keys handed over at closing after a cash sale',
+	'home-selling-process'          => 'Simple home selling process with Turning Point Homes',
+];
+
+function tph_alt_for( $url ) {
+	$name = strtolower( pathinfo( wp_parse_url( $url, PHP_URL_PATH ), PATHINFO_FILENAME ) );
+	foreach ( TPH_ALT_TEXT as $needle => $alt ) {
+		if ( false !== strpos( $name, $needle ) ) {
+			return $alt;
+		}
+	}
+	// Fall back to a cleaned-up file name, skipping camera/stock-ID names that mean nothing.
+	$name = preg_replace( '/(-\d+x\d+|-scaled|-e\d{10,}|-\d+)$/', '', $name );
+	if ( preg_match( '/^(img|dsc|whatsapp|pexels|pngegg|placeholder|[0-9a-f]{12,})/', $name ) ) {
+		return 'Turning Point Homes - we buy houses for cash in Independence, MO';
+	}
+	return ucfirst( trim( preg_replace( '/[-_]+/', ' ', $name ) ) );
+}
+
+// Images placed with the WordPress media functions.
+add_filter(
+	'wp_get_attachment_image_attributes',
+	function ( $attr ) {
+		if ( empty( $attr['alt'] ) && ! empty( $attr['src'] ) ) {
+			$attr['alt'] = tph_alt_for( $attr['src'] );
+		}
+		return $attr;
+	}
+);
+
+// Images inside page content (Elementor image widgets print plain <img> tags).
+add_filter( 'the_content', 'tph_fill_missing_alt', 20 );
+add_filter( 'elementor/widget/render_content', 'tph_fill_missing_alt', 20 );
+
+function tph_fill_missing_alt( $html ) {
+	return preg_replace_callback(
+		'/<img\b[^>]*>/i',
+		function ( $m ) {
+			$tag = $m[0];
+			if ( preg_match( '/\balt\s*=\s*(["\'])\s*[^"\'\s]/i', $tag ) || ! preg_match( '/\bsrc\s*=\s*(["\'])(.*?)\1/i', $tag, $src ) ) {
+				return $tag; // Already has alt text, or no src to go on.
+			}
+			$alt = esc_attr( tph_alt_for( $src[2] ) );
+			$tag = preg_replace( '/\balt\s*=\s*(["\'])\s*\1/i', '', $tag ); // drop empty alt=""
+			return preg_replace( '/^<img\b/i', '<img alt="' . $alt . '"', $tag );
+		},
+		$html
+	);
+}

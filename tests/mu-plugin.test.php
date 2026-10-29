@@ -14,6 +14,7 @@ function home_url( $path = '' ) { return 'https://investturningpoint.com' . $pat
 function esc_url_raw( $u ) { return $u; }
 function wp_unslash( $v ) { return $v; }
 function esc_html( $v ) { return htmlspecialchars( $v ); }
+function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); }
 function esc_attr( $v ) { return htmlspecialchars( $v ); }
 function wp_json_encode( $v, $f = 0 ) { return json_encode( $v, $f ); }
 function is_wp_error( $v ) { return $v instanceof WP_Error; }
@@ -114,5 +115,15 @@ check( 'other pages stay indexable', empty( $robots['noindex'] ) );
 
 // Without a sheet URL nothing is sent but the redirect still happens (lead stays in Elementor Submissions).
 check( 'empty URL sends nothing', tph_send_to_sheet( [] ) === true ); // URL set in this run
+// Alt text: filled when missing or empty, never replaced, curated names win.
+$out = tph_fill_missing_alt( '<p><img src="/wp-content/uploads/2025/11/House-in-a-bad-condition-1024x683.webp" alt=""><img src="/x/IMG_6684.jpg"><img src="/y/Realtor.jpg" alt="Our realtor"></p>' );
+check( 'curated alt for known image', strpos( $out, 'alt="House needing major repairs, bought as-is by Turning Point Homes"' ) !== false );
+check( 'empty alt removed', substr_count( $out, 'alt=""' ) === 0 );
+check( 'camera file gets generic alt', strpos( $out, 'alt="Turning Point Homes - we buy houses for cash in Independence, MO" src="/x/IMG_6684.jpg"' ) !== false );
+check( 'existing alt kept', strpos( $out, 'alt="Our realtor"' ) !== false && substr_count( $out, 'alt=' ) === 3 );
+check( 'plain filename alt', tph_alt_for( '/u/Wholesaling-Real-Estate-business-scaled.jpg' ) === 'Wholesaling real estate business' );
+$a = $GLOBALS['hooks']['wp_get_attachment_image_attributes'][0]( [ 'src' => '/u/Nicolas-Zachgo-scaled.jpg', 'alt' => '' ] );
+check( 'attachment alt filled', $a['alt'] === 'Nicholas Zachgo, owner of Turning Point Homes' );
+
 echo $fails ? "\n$fails failed\n" : "\nall passed\n";
 exit( $fails ? 1 : 0 );
