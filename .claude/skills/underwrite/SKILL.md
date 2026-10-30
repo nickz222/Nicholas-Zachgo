@@ -70,14 +70,61 @@ Parallel agents to launch simultaneously (Agent tool, one message, run in backgr
    count of existing storage facilities and estimated total NRSF at each radius, and any
    new/planned storage developments or permits (search '{county} self storage permit',
    '{city} storage development', recent news). Compute SF/capita."
-3. **Flood + site risk** — "For {address}: FEMA flood zone (msc.fema.gov / NFHL),
-   FIRM panel # and effective date, whether it's in a Special Flood Hazard Area; note
-   dam/levee/drainage issues and any history of flooding in {city}. Also note anything
-   else site-relevant that turns up: crime reputation, major employer news, highway
-   projects."
+3. **Flood + site risk** — "For EACH of these addresses: {every address}: FEMA flood
+   zone per parcel (see the FEMA flood check section — run the NFHL API first), FIRM
+   panel # and effective date, whether it's in a Special Flood Hazard Area; note
+   dam/levee/drainage issues, levee presence, river gauge flood history for {city}.
+   Also note anything else site-relevant that turns up: crime reputation, major
+   employer news, highway projects."
 
 If an agent comes back thin, do one targeted follow-up search yourself rather than
 re-running the whole agent.
+
+## FEMA flood check — MANDATORY, every address, every deal
+
+Never accept the OM's flood claim ("Flood Zone: No" is a sales line, not a
+determination). Every deal gets a parcel-level check for EVERY property address —
+portfolios included: enumerate all addresses/parcels from the OM and county parcel
+numbers, and check each one. A deal is not fully underwritten until every address has
+a flood status of VERIFIED-IN, VERIFIED-OUT, or explicitly UNVERIFIED.
+
+**Primary method — FEMA NFHL API (run this first, per address):**
+1. Geocode: `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address={URL-encoded address}&benchmark=Public_AR_Current&format=json`
+   → take `result.addressMatches[0].coordinates` (x = lon, y = lat). Fallback geocoder:
+   `https://nominatim.openstreetmap.org/search?q={address}&format=json&limit=1`.
+2. Flood zone: `https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28/query?geometry={lon},{lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=FLD_ZONE,ZONE_SUBTY,SFHA_TF,STATIC_BFE&returnGeometry=false&f=json`
+   (layer 28 = Flood Hazard Zones). `SFHA_TF = "T"` means Special Flood Hazard Area
+   (zones A/AE/AO/AH/VE). Zone X with subtype "0.2 PCT ANNUAL CHANCE" = moderate risk.
+   FIRM panel: same query against layer 3 (FIRM Panels) with outFields
+   `FIRM_PAN,EFF_DATE`. An empty `features` array can mean unmapped area — query layer
+   0 (NFHL Availability) before concluding "not in a flood zone".
+3. Run the point query at the building locations, not just the mailing point: for a
+   large parcel, also test 2-3 offsets (~50-100m toward the water side). A parcel can
+   straddle zones; the structures decide insurance.
+
+**When the network blocks those hosts** (CONNECT 403 through the proxy — this
+environment allowlists domains): tell Nick which hosts to add under the environment's
+Network access settings (Edit environment → Allowed domains):
+`geocoding.geo.census.gov`, `hazards.fema.gov`, and optionally
+`nominatim.openstreetmap.org`, `msc.fema.gov` — docs:
+https://code.claude.com/docs/en/cloud-environments#network-access. Then fall back,
+per address, to web-search evidence (county floodplain pages, SafeRate/LoopNet parcel
+flood fields, NWS gauge history, local flood news) and classify every address
+conservatively. A search-based call is never VERIFIED: mark it "likely X / likely AE
+(unverified)" with the evidence.
+
+**Recording the result (all of it, every deal):**
+- Flood & Market tab: B11 = per-deal summary naming each address and its zone/status;
+  B12 = FIRM panel(s) + effective date(s); B17 = flood premium estimate if any parcel
+  is in/near SFHA (and add that premium to the Underwriting insurance line, saying so).
+- The memo gets a per-address flood table: address | zone | SFHA? | source | status.
+- Any SFHA parcel, or any UNVERIFIED parcel, is a red flag in the memo even if the
+  sheet's Scorecard row shows a pass (the Scorecard can only see one cell): say
+  explicitly "flood status is not clear for {addresses} — elevation certificates and
+  a flood zone determination cert (~$20/parcel) in DD, plus NFIP claims history and
+  seller loss runs."
+- River/creek-adjacent markets (names like "Riverside" count as a hint, not a joke):
+  also check levee presence and the local gauge's historic crests vs flood stage.
 
 ## Step-by-step
 
